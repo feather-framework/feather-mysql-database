@@ -1,22 +1,51 @@
 SHELL=/bin/bash
 
-build:
-	swift build
+baseUrl = https://raw.githubusercontent.com/BinaryBirds/github-workflows/refs/heads/main/scripts
 
-release:
-	swift build -c release
-	
-test:
-	swift test --parallel
+check: symlinks language deps lint headers
 
-test-with-coverage:
-	swift test --parallel --enable-code-coverage
+symlinks:
+	curl -s $(baseUrl)/check-broken-symlinks.sh | bash
 
-clean:
-	rm -rf .build
+language:
+	curl -s $(baseUrl)/check-unacceptable-language.sh | bash
 
-check:
-	./scripts/run-checks.sh
+deps:
+	curl -s $(baseUrl)/check-local-swift-dependencies.sh | bash
+
+lint:
+	curl -s $(baseUrl)/run-swift-format.sh | bash
 
 format:
-	./scripts/run-swift-format.sh --fix
+	curl -s $(baseUrl)/run-swift-format.sh | bash -s -- --fix
+	find Sources -type f -name '*.swift' -print0 | xargs -0 sed -i '' 's/nonisolated (nonsending/nonisolated(nonsending/g'
+	find Tests -type f -name '*.swift' -print0 | xargs -0 sed -i '' 's/nonisolated (nonsending/nonisolated(nonsending/g'
+
+docc-local:
+	curl -s $(baseUrl)/generate-docc.sh | bash -s -- --local
+
+run-docc:
+	curl -s $(baseUrl)/run-docc-docker.sh | bash
+
+docc-warnings:
+	curl -s $(baseUrl)/check-docc-warnings.sh | bash
+
+headers:
+	curl -s $(baseUrl)/check-swift-headers.sh | bash
+
+fix-headers:
+	curl -s $(baseUrl)/check-swift-headers.sh | bash -s -- --fix
+
+
+testprep:
+	rm -rf docker/mariadb/certificates && mkdir -p docker/mariadb/certificates && cd docker/mariadb/certificates && ../scripts/generate-certificates.sh
+	docker compose up -d --build postgres mariadb
+
+testrun: testprep
+	swift test --parallel
+
+test: testrun
+	docker compose down
+
+docker-test:
+	docker build -t feather-mysql-database-tests . -f ./docker/tests/Dockerfile && docker run --rm feather-mysql-database-tests
