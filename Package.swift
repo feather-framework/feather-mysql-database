@@ -11,7 +11,7 @@ var defaultSwiftSettings: [SwiftSetting] =
     // https://forums.swift.org/t/experimental-support-for-lifetime-dependencies-in-swift-6-2-and-beyond/78638
     .enableExperimentalFeature("Lifetimes"),
     // https://github.com/swiftlang/swift/pull/65218
-    .enableExperimentalFeature("AvailabilityMacro=featherMySQLDatabase 1.0:macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0"),
+    .enableExperimentalFeature("AvailabilityMacro=featherMySQLDatabase 1.0:macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0"),
 ]
 
 #if compiler(>=6.2)
@@ -24,7 +24,6 @@ defaultSwiftSettings.append(
 
 let package = Package(
     name: "feather-mysql-database",
-    // NOTE: platfroms is needed because of dependencies, remove when remove pg & sqlite
     platforms: [
         .macOS(.v15),
         .iOS(.v18),

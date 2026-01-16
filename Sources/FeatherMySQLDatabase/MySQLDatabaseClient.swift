@@ -33,18 +33,18 @@ public struct MySQLDatabaseClient: DatabaseClient {
 
     // MARK: - database api
 
-    #if compiler(>=6.2)
     /// Execute work using the stored connection.
     ///
     /// The closure is executed with the current connection.
-    /// - Parameter closure: A closure that receives the MySQL connection.
+    /// - Parameters:
+    ///   - isolation: The actor isolation for the operation.
+    ///   - closure: A closure that receives the MySQL connection.
     /// - Throws: A `DatabaseError` if the connection fails.
     /// - Returns: The query result produced by the closure.
     @discardableResult
     public func connection(
-        _ closure:
-            nonisolated(nonsending)(MySQLConnection) async throws
-            -> sending MySQLQueryResult
+        isolation: isolated (any Actor)? = #isolation,
+        _ closure: (MySQLConnection) async throws -> sending MySQLQueryResult
     ) async throws(DatabaseError) -> sending MySQLQueryResult {
         do {
             return try await closure(connection)
@@ -60,14 +60,15 @@ public struct MySQLDatabaseClient: DatabaseClient {
     /// Execute work inside a MySQL transaction.
     ///
     /// The closure runs between `START TRANSACTION` and `COMMIT` with rollback on failure.
-    /// - Parameter closure: A closure that receives the MySQL connection.
+    /// - Parameters:
+    ///   - isolation: The actor isolation for the operation.
+    ///   - closure: A closure that receives the MySQL connection.
     /// - Throws: A `DatabaseError` if transaction handling fails.
     /// - Returns: The query result produced by the closure.
     @discardableResult
     public func transaction(
-        _ closure:
-            nonisolated(nonsending)(MySQLConnection) async throws
-            -> sending MySQLQueryResult
+        isolation: isolated (any Actor)? = #isolation,
+        _ closure: (MySQLConnection) async throws -> sending MySQLQueryResult
     ) async throws(DatabaseError) -> sending MySQLQueryResult {
 
         do {
@@ -116,85 +117,5 @@ public struct MySQLDatabaseClient: DatabaseClient {
             throw DatabaseError.transaction(txError)
         }
     }
-    #else
-    /// Execute work using the stored connection.
-    ///
-    /// The closure is executed with the current connection.
-    /// - Parameter closure: A closure that receives the MySQL connection.
-    /// - Throws: A `DatabaseError` if the connection fails.
-    /// - Returns: The query result produced by the closure.
-    @discardableResult
-    public func connection(
-        _ closure:
-            (MySQLConnection) async throws -> MySQLQueryResult
-    ) async throws(DatabaseError) -> MySQLQueryResult {
-        do {
-            return try await closure(connection)
-        }
-        catch let error as DatabaseError {
-            throw error
-        }
-        catch {
-            throw .connection(error)
-        }
-    }
 
-    /// Execute work inside a MySQL transaction.
-    ///
-    /// The closure runs between `START TRANSACTION` and `COMMIT` with rollback on failure.
-    /// - Parameter closure: A closure that receives the MySQL connection.
-    /// - Throws: A `DatabaseError` if transaction handling fails.
-    /// - Returns: The query result produced by the closure.
-    @discardableResult
-    public func transaction(
-        _ closure: (MySQLConnection) async throws -> MySQLQueryResult
-    ) async throws(DatabaseError) -> MySQLQueryResult {
-
-        do {
-            try await connection.execute(query: "START TRANSACTION;")
-        }
-        catch {
-            throw DatabaseError.transaction(
-                MySQLTransactionError(beginError: error)
-            )
-        }
-
-        var closureHasFinished = false
-
-        do {
-            let result = try await closure(connection)
-            closureHasFinished = true
-
-            do {
-                try await connection.execute(query: "COMMIT;")
-            }
-            catch {
-                throw DatabaseError.transaction(
-                    MySQLTransactionError(commitError: error)
-                )
-            }
-
-            return result
-        }
-        catch {
-            var txError = MySQLTransactionError()
-
-            if !closureHasFinished {
-                txError.closureError = error
-
-                do {
-                    try await connection.execute(query: "ROLLBACK;")
-                }
-                catch {
-                    txError.rollbackError = error
-                }
-            }
-            else {
-                txError.commitError = error
-            }
-
-            throw DatabaseError.transaction(txError)
-        }
-    }
-    #endif
 }
