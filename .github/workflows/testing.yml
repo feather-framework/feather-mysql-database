@@ -1,0 +1,59 @@
+name: Testing
+
+on:
+  pull_request:
+    branches:
+    - main
+
+jobs:
+
+  swiftlang_checks:
+    name: Swiftlang Checks
+    uses: swiftlang/github-workflows/.github/workflows/soundness.yml@main
+    with:
+      license_header_check_project_name: "project"
+      format_check_enabled : true
+      broken_symlink_check_enabled : true
+      unacceptable_language_check_enabled : true
+      shell_check_enabled : true
+      docs_check_enabled : false
+      api_breakage_check_enabled : false
+      license_header_check_enabled : false
+      yamllint_check_enabled : false
+      python_lint_check_enabled : false
+
+  bb_checks:
+    name: BB Checks
+    uses: BinaryBirds/github-workflows/.github/workflows/extra_soundness.yml@main
+    with:
+      local_swift_dependencies_check_enabled : true
+      headers_check_enabled : true
+      docc_warnings_check_enabled : true
+
+  swiftlang_tests:
+    name: Swiftlang Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate certificates
+        run: make test-cert
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mariadb-client
+      - name: Start MariaDB Docker Container
+        run: docker compose up -d --build
+      - name: Wait For MariaDB Docker Container
+        run: |
+          for i in {1..30}; do
+            if docker compose exec -T mariadb mariadb-admin ping -u mariadb -pmariadb --silent; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker compose logs mariadb
+          exit 1
+      - name: Run Tests
+        run: swift test --parallel --enable-code-coverage
+      - name: Stop MariaDB Docker Container
+        if: always()
+        run: docker compose down -v

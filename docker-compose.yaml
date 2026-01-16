@@ -1,0 +1,17 @@
+services:
+    mariadb:
+        build:
+            context: .
+            dockerfile: docker/mariadb/Dockerfile
+        environment:
+            MYSQL_ROOT_PASSWORD: mariadb
+            MYSQL_USER: mariadb
+            MYSQL_PASSWORD: mariadb
+            MYSQL_DATABASE: mariadb
+        ports:
+            - "3306:3306"
+        volumes:
+            - 'mariadb:/docker-entrypoint-initdb.d:ro'
+
+volumes:
+    mariadb:
