@@ -84,7 +84,7 @@ struct MySQLDatabaseTestSuite {
             try await connection.close().get()
             try await eventLoopGroup.shutdownGracefully()
 
-            throw error
+            Issue.record(error)
         }
     }
 
@@ -993,6 +993,150 @@ struct MySQLDatabaseTestSuite {
 
             let value = try item.decode(column: "Value", as: String.self)
             #expect(value == "TLS_AES_128_GCM_SHA256")
+        }
+    }
+
+    @Test
+    func concurrentTransactionUpdates() async throws {
+        try await runUsingTestDatabaseClient { database in
+            let suffix = randomTableSuffix()
+            let table = "sessions_\(suffix)"
+            let sessionID = "session_\(suffix)"
+
+            enum TestError: Error {
+                case missingRow
+            }
+
+            try await database.execute(
+                query: #"""
+                    DROP TABLE IF EXISTS `\#(unescaped: table)`;
+                    """#
+            )
+            try await database.execute(
+                query: #"""
+                    CREATE TABLE `\#(unescaped: table)` (
+                        `id` VARCHAR(255) NOT NULL PRIMARY KEY,
+                        `access_token` TEXT NOT NULL,
+                        `access_expires_at` TIMESTAMP NOT NULL,
+                        `refresh_token` TEXT NOT NULL,
+                        `refresh_count` INTEGER NOT NULL DEFAULT 0
+                    );
+                    """#
+            )
+
+            // set an expired token
+            try await database.execute(
+                query: #"""
+                    INSERT INTO `\#(unescaped: table)`
+                        (`id`, `access_token`, `access_expires_at`, `refresh_token`, `refresh_count`)
+                    VALUES
+                        (
+                            \#(sessionID),
+                            'stale',
+                            NOW() - INTERVAL 5 MINUTE,
+                            'refresh',
+                            0
+                        );
+                    """#
+            )
+
+            func getValidAccessToken(sessionID: String) async throws -> String {
+                try await database.transaction { connection in
+                    let result = try await connection.execute(
+                        query: #"""
+                            SELECT
+                                `access_token`,
+                                `refresh_count`,
+                                `access_expires_at` > NOW() + INTERVAL 60 SECOND AS `is_valid`
+                            FROM `\#(unescaped: table)`
+                            WHERE `id` = \#(sessionID)
+                            FOR UPDATE;
+                            """#
+                    )
+                    let rows = try await result.collect()
+
+                    guard let row = rows.first else {
+                        throw TestError.missingRow
+                    }
+
+                    let isValid = try row.decode(
+                        column: "is_valid",
+                        as: Bool.self
+                    )
+                    if isValid {
+                        // token was valid, must be called X times
+                        return try row.decode(
+                            column: "access_token",
+                            as: String.self
+                        )
+                    }
+
+                    // refresh, this branch can only be called 1 time
+                    let refreshCount = try row.decode(
+                        column: "refresh_count",
+                        as: Int.self
+                    )
+                    let newRefreshCount = refreshCount + 1
+                    let newToken = "token_\(newRefreshCount)"
+
+                    try await Task.sleep(for: .milliseconds(40))
+
+                    _ = try await connection.execute(
+                        query: #"""
+                            UPDATE `\#(unescaped: table)`
+                            SET
+                                `access_token` = \#(newToken),
+                                `access_expires_at` = NOW() + INTERVAL 10 MINUTE,
+                                `refresh_count` = \#(newRefreshCount)
+                            WHERE `id` = \#(sessionID);
+                            """#
+                    )
+
+                    return newToken
+                }
+            }
+
+            let workerCount = 80
+            var tokens: [String] = []
+            try await withThrowingTaskGroup(of: String.self) { group in
+                for _ in 0..<workerCount {
+                    group.addTask {
+                        try await getValidAccessToken(sessionID: sessionID)
+                    }
+                }
+                for try await token in group {
+                    tokens.append(token)
+                }
+            }
+
+            #expect(Set(tokens).count == 1)
+
+            let result =
+                try await database.execute(
+                    query: #"""
+                        SELECT
+                            `access_token`,
+                            `refresh_count`,
+                            `access_expires_at` > NOW() AS `is_valid`
+                        FROM `\#(unescaped: table)`
+                        WHERE `id` = \#(sessionID);
+                        """#
+                )
+                .collect()
+
+            #expect(result.count == 1)
+            #expect(
+                try result[0].decode(column: "refresh_count", as: Int.self)
+                    == 1
+            )
+            #expect(
+                try result[0].decode(column: "access_token", as: String.self)
+                    == "token_1"
+            )
+            #expect(
+                try result[0].decode(column: "is_valid", as: Bool.self)
+                    == true
+            )
         }
     }
 
