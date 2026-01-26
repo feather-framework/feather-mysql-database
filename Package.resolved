@@ -1,13 +1,13 @@
 {
-  "originHash" : "83d3cc76133b2b6edb8e5e638762c23e93f7f69a4d70acc970ba1d2c9cf8ace3",
+  "originHash" : "93cc0f0ca420ec1c07aff996c5017b9efedf86f062a162baf495851a59d5c0c3",
   "pins" : [
     {
       "identity" : "feather-database",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/feather-framework/feather-database",
       "state" : {
-        "revision" : "34b05e9ca725bf857c9bc6e29603a4e457f9969a",
-        "version" : "1.0.0-beta.1"
+        "revision" : "147c96803f398c50f5717ce08ebd78a9e3ab7ca7",
+        "version" : "1.0.0-beta.2"
       }
     },
     {
