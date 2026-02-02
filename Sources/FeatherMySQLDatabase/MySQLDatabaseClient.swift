@@ -14,7 +14,9 @@ import MySQLNIO
 /// Use this client to execute queries and manage transactions on MySQL.
 public struct MySQLDatabaseClient: DatabaseClient {
 
-    var connection: MySQLConnection
+    public typealias Connection = MySQLDatabaseConnection
+
+    var connection: MySQLDatabaseConnection
     var logger: Logger
 
     /// Create a MySQL database client.
@@ -27,7 +29,10 @@ public struct MySQLDatabaseClient: DatabaseClient {
         connection: MySQLConnection,
         logger: Logger
     ) {
-        self.connection = connection
+        self.connection = .init(
+            connection: connection,
+            logger: logger
+        )
         self.logger = logger
     }
 
@@ -36,16 +41,13 @@ public struct MySQLDatabaseClient: DatabaseClient {
     /// Execute work using the stored connection.
     ///
     /// The closure is executed with the current connection.
-    /// - Parameters:
-    ///   - isolation: The actor isolation for the operation.
-    ///   - closure: A closure that receives the MySQL connection.
+    /// - Parameter closure: A closure that receives the MySQL connection.
     /// - Throws: A `DatabaseError` if the connection fails.
     /// - Returns: The query result produced by the closure.
     @discardableResult
-    public func connection<T>(
-        isolation: isolated (any Actor)? = #isolation,
-        _ closure: (MySQLConnection) async throws -> sending T
-    ) async throws(DatabaseError) -> sending T {
+    public func withConnection<T>(
+        _ closure: (Connection) async throws -> T = { _ in }
+    ) async throws(DatabaseError) -> T {
         do {
             return try await closure(connection)
         }
@@ -60,23 +62,22 @@ public struct MySQLDatabaseClient: DatabaseClient {
     /// Execute work inside a MySQL transaction.
     ///
     /// The closure runs between `START TRANSACTION` and `COMMIT` with rollback on failure.
-    /// - Parameters:
-    ///   - isolation: The actor isolation for the operation.
-    ///   - closure: A closure that receives the MySQL connection.
+    /// - Parameter closure: A closure that receives the MySQL connection.
     /// - Throws: A `DatabaseError` if transaction handling fails.
     /// - Returns: The query result produced by the closure.
     @discardableResult
-    public func transaction<T>(
-        isolation: isolated (any Actor)? = #isolation,
-        _ closure: (MySQLConnection) async throws -> sending T
-    ) async throws(DatabaseError) -> sending T {
+    public func withTransaction<T>(
+        _ closure: (Connection) async throws -> T = { _ in }
+    ) async throws(DatabaseError) -> T {
 
         do {
-            try await connection.execute(query: "START TRANSACTION;")
+            try await connection.run(query: "START TRANSACTION;") { _ in }
         }
         catch {
             throw DatabaseError.transaction(
-                MySQLTransactionError(beginError: error)
+                MySQLTransactionError(
+                    beginError: error
+                )
             )
         }
 
@@ -87,7 +88,7 @@ public struct MySQLDatabaseClient: DatabaseClient {
             closureHasFinished = true
 
             do {
-                try await connection.execute(query: "COMMIT;")
+                try await connection.run(query: "COMMIT;") { _ in }
             }
             catch {
                 throw DatabaseError.transaction(
@@ -104,7 +105,7 @@ public struct MySQLDatabaseClient: DatabaseClient {
                 txError.closureError = error
 
                 do {
-                    try await connection.execute(query: "ROLLBACK;")
+                    try await connection.run(query: "ROLLBACK;") { _ in }
                 }
                 catch {
                     txError.rollbackError = error

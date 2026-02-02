@@ -6,12 +6,12 @@
 //
 
 import FeatherDatabase
-import MySQLNIO
 
 /// A query result backed by MySQL rows.
 ///
 /// Use this type to iterate or collect MySQL query results.
-public struct MySQLQueryResult: DatabaseQueryResult {
+public struct MySQLRowSequence: DatabaseRowSequence {
+
     let elements: [MySQLRow]
 
     /// An async iterator over MySQL rows.
