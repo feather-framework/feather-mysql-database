@@ -1,8 +1,8 @@
 //
-//  MySQLTransactionError.swift
+//  MySQLDatabaseTransactionError.swift
 //  feather-mysql-database
 //
-//  Created by Tibor Bödecs on 2026. 01. 10..
+//  Created by Tibor Bödecs on 2026. 01. 10.
 //
 
 import FeatherDatabase
@@ -24,19 +24,19 @@ public struct MySQLTransactionError: DatabaseTransactionError {
     /// The error thrown while beginning the transaction.
     ///
     /// Set when the `START TRANSACTION` step fails.
-    public var beginError: Error?
+    public internal(set) var beginError: Error?
     /// The error thrown inside the transaction closure.
     ///
     /// Set when the closure fails before commit.
-    public var closureError: Error?
+    public internal(set) var closureError: Error?
     /// The error thrown while committing the transaction.
     ///
     /// Set when the `COMMIT` step fails.
-    public var commitError: Error?
+    public internal(set) var commitError: Error?
     /// The error thrown while rolling back the transaction.
     ///
     /// Set when the `ROLLBACK` step fails.
-    public var rollbackError: Error?
+    public internal(set) var rollbackError: Error?
 
     /// Create a MySQL transaction error payload.
     ///
@@ -48,7 +48,7 @@ public struct MySQLTransactionError: DatabaseTransactionError {
     ///   - closureError: The error thrown inside the transaction closure.
     ///   - commitError: The error thrown while committing the transaction.
     ///   - rollbackError: The error thrown while rolling back the transaction.
-    public init(
+    init(
         file: String = #fileID,
         line: Int = #line,
         beginError: Error? = nil,
