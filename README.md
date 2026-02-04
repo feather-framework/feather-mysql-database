@@ -3,9 +3,9 @@
 MySQL/MariaDB driver implementation for the abstract [Feather Database](https://github.com/feather-framework/feather-database) Swift API package.
 
 [
-    ![Release: 1.0.0-beta.2](https://img.shields.io/badge/Release-1%2E0%2E0--beta%2E2-F05138)
+    ![Release: 1.0.0-beta.3](https://img.shields.io/badge/Release-1%2E0%2E0--beta%2E3-F05138)
 ](
-    https://github.com/feather-framework/feather-mysql-database/releases/tag/1.0.0-beta.2
+    https://github.com/feather-framework/feather-mysql-database/releases/tag/1.0.0-beta.3
 )
 
 ## Features
@@ -37,7 +37,7 @@ MySQL/MariaDB driver implementation for the abstract [Feather Database](https://
 Add the dependency to your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/feather-framework/feather-mysql-database", exact: "1.0.0-beta.2"),
+.package(url: "https://github.com/feather-framework/feather-mysql-database", exact: "1.0.0-beta.3"),
 ```
 
 Then add `FeatherMySQLDatabase` to your target dependencies:
@@ -49,16 +49,15 @@ Then add `FeatherMySQLDatabase` to your target dependencies:
 
 ## Usage
 
+API documentation is available at the link below: 
+
 [
     ![DocC API documentation](https://img.shields.io/badge/DocC-API_documentation-F05138)
 ](
     https://feather-framework.github.io/feather-mysql-database/documentation/feathermysqldatabase/
 )
 
-API documentation is available at the following link. 
-
-> [!TIP]
-> Avoid calling `database.execute` while in a transaction; use the transaction `connection` instead.
+Here is a brief example:
 
 ```swift
 import Logging
@@ -98,15 +97,17 @@ let database = MySQLDatabaseClient(
 )
 
 do {
-    let result = try await database.execute(
-        query: #"""
-            SELECT
-                VERSION() AS `version`
-            WHERE
-                1=\#(1);
-            """#
-    )
-
+    let result = try await database.withConnection { connection in
+        try await connection.run(
+            query: #"""
+                SELECT
+                    VERSION() AS `version`
+                WHERE
+                    1=\#(1);
+                """#
+        )
+    }
+    
     for try await item in result {
         let version = try item.decode(column: "version", as: String.self)
         print(version)

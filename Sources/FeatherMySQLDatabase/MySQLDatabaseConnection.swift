@@ -28,7 +28,7 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
     @discardableResult
     public func run<T: Sendable>(
         query: Query,
-        _ handler: (RowSequence) async throws -> T = { _ in }
+        _ handler: (RowSequence) async throws -> T = { $0 }
     ) async throws(DatabaseError) -> T {
         do {
             let rows =

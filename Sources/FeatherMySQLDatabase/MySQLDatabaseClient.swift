@@ -46,7 +46,7 @@ public struct MySQLDatabaseClient: DatabaseClient {
     /// - Returns: The query result produced by the closure.
     @discardableResult
     public func withConnection<T>(
-        _ closure: (Connection) async throws -> T = { _ in }
+        _ closure: (Connection) async throws -> T
     ) async throws(DatabaseError) -> T {
         do {
             return try await closure(connection)
@@ -67,7 +67,7 @@ public struct MySQLDatabaseClient: DatabaseClient {
     /// - Returns: The query result produced by the closure.
     @discardableResult
     public func withTransaction<T>(
-        _ closure: (Connection) async throws -> T = { _ in }
+        _ closure: (Connection) async throws -> T
     ) async throws(DatabaseError) -> T {
 
         do {
