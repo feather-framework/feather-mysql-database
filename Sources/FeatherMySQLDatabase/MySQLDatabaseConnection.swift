@@ -21,9 +21,9 @@ extension Query {
         var mysqlBindings: [MySQLData] = []
 
         for binding in bindings {
-            /// postgres binding index starts with 1
             let idx = binding.index + 1
-            mysqlSQL = mysqlSQL
+            mysqlSQL =
+                mysqlSQL
                 .replacing("{{\(idx)}}", with: "?")
 
             switch binding.binding {
@@ -42,7 +42,6 @@ extension Query {
         )
     }
 }
-
 
 public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
 
@@ -66,11 +65,12 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
     ) async throws(DatabaseError) -> T {
         do {
             let mysqlQuery = query.toMySQLQuery()
-            let rows = try await connection.query(
-                mysqlQuery.sql,
-                mysqlQuery.bindings
-            )
-            .get()
+            let rows =
+                try await connection.query(
+                    mysqlQuery.sql,
+                    mysqlQuery.bindings
+                )
+                .get()
 
             return try await handler(
                 MySQLRowSequence(

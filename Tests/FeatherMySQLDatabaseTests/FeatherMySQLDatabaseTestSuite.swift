@@ -468,14 +468,14 @@ struct MySQLDatabaseTestSuite {
                 )
 
                 let body: String? = nil
-            
+
                 try await connection.run(
                     query: #"""
-                    INSERT INTO `\#(unescaped: table)`
-                        (`id`, `body`)
-                    VALUES
-                        (1, \#(body));
-                    """#
+                        INSERT INTO `\#(unescaped: table)`
+                            (`id`, `body`)
+                        VALUES
+                            (1, \#(body));
+                        """#
                 )
 
                 let result =
@@ -520,11 +520,11 @@ struct MySQLDatabaseTestSuite {
 
                 try await connection.run(
                     query: #"""
-                    INSERT INTO `\#(unescaped: table)`
-                        (`id`, `label`)
-                    VALUES
-                        (1, \#("alpha"));
-                    """#
+                        INSERT INTO `\#(unescaped: table)`
+                            (`id`, `label`)
+                        VALUES
+                            (1, \#("alpha"));
+                        """#
                 )
 
                 let result =
