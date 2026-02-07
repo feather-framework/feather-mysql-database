@@ -418,17 +418,14 @@ struct MySQLDatabaseTestSuite {
                         """#
                 )
 
-                let insert = MySQLQuery(
-                    unsafeSQL: #"""
-                        INSERT INTO `\#(table)`
+                try await connection.run(
+                    query: #"""
+                        INSERT INTO `\#(unescaped: table)`
                             (`id`, `name`)
                         VALUES
-                            (?, ?);
-                        """#,
-                    bindings: [.init(int: 1), .init(string: "gizmo")]
+                            (\#(1), \#("gizmo"));
+                        """#
                 )
-
-                try await connection.run(query: insert)
 
                 let result =
                     try await connection.run(
@@ -471,14 +468,15 @@ struct MySQLDatabaseTestSuite {
                 )
 
                 let body: String? = nil
-                let insert: MySQLQuery = #"""
+            
+                try await connection.run(
+                    query: #"""
                     INSERT INTO `\#(unescaped: table)`
                         (`id`, `body`)
                     VALUES
                         (1, \#(body));
                     """#
-
-                try await connection.run(query: insert)
+                )
 
                 let result =
                     try await connection.run(
@@ -520,15 +518,14 @@ struct MySQLDatabaseTestSuite {
                         """#
                 )
 
-                let label: MySQLData = .init(string: "alpha")
-                let insert: MySQLQuery = #"""
+                try await connection.run(
+                    query: #"""
                     INSERT INTO `\#(unescaped: table)`
                         (`id`, `label`)
                     VALUES
-                        (1, \#(label));
+                        (1, \#("alpha"));
                     """#
-
-                try await connection.run(query: insert)
+                )
 
                 let result =
                     try await connection.run(

@@ -9,9 +9,43 @@ import FeatherDatabase
 import MySQLNIO
 import NIOCore
 
+extension Query {
+
+    fileprivate struct MySQLQuery {
+        var sql: String
+        var bindings: [MySQLData]
+    }
+
+    fileprivate func toMySQLQuery() -> MySQLQuery {
+        var mysqlSQL = sql
+        var mysqlBindings: [MySQLData] = []
+
+        for binding in bindings {
+            /// postgres binding index starts with 1
+            let idx = binding.index + 1
+            mysqlSQL = mysqlSQL
+                .replacing("{{\(idx)}}", with: "?")
+
+            switch binding.binding {
+            case .int(let value):
+                mysqlBindings.append(.init(int: value))
+            case .double(let value):
+                mysqlBindings.append(.init(double: value))
+            case .string(let value):
+                mysqlBindings.append(.init(string: value))
+            }
+        }
+
+        return .init(
+            sql: mysqlSQL,
+            bindings: mysqlBindings
+        )
+    }
+}
+
+
 public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
 
-    public typealias Query = MySQLQuery
     public typealias RowSequence = MySQLRowSequence
 
     let connection: MySQLNIO.MySQLConnection
@@ -31,12 +65,12 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
         _ handler: (RowSequence) async throws -> T = { $0 }
     ) async throws(DatabaseError) -> T {
         do {
-            let rows =
-                try await connection.query(
-                    query.sql,
-                    query.bindings
-                )
-                .get()
+            let mysqlQuery = query.toMySQLQuery()
+            let rows = try await connection.query(
+                mysqlQuery.sql,
+                mysqlQuery.bindings
+            )
+            .get()
 
             return try await handler(
                 MySQLRowSequence(
