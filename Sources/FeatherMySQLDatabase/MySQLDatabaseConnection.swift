@@ -9,9 +9,42 @@ import FeatherDatabase
 import MySQLNIO
 import NIOCore
 
+extension DatabaseQuery {
+
+    fileprivate struct MySQLQuery {
+        var sql: String
+        var bindings: [MySQLData]
+    }
+
+    fileprivate func toMySQLQuery() -> MySQLQuery {
+        var mysqlSQL = sql
+        var mysqlBindings: [MySQLData] = []
+
+        for binding in bindings {
+            let idx = binding.index + 1
+            mysqlSQL =
+                mysqlSQL
+                .replacing("{{\(idx)}}", with: "?")
+
+            switch binding.binding {
+            case .int(let value):
+                mysqlBindings.append(.init(int: value))
+            case .double(let value):
+                mysqlBindings.append(.init(double: value))
+            case .string(let value):
+                mysqlBindings.append(.init(string: value))
+            }
+        }
+
+        return .init(
+            sql: mysqlSQL,
+            bindings: mysqlBindings
+        )
+    }
+}
+
 public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
 
-    public typealias Query = MySQLQuery
     public typealias RowSequence = MySQLRowSequence
 
     let connection: MySQLNIO.MySQLConnection
@@ -27,14 +60,15 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
     /// - Returns: A query result containing the returned rows.
     @discardableResult
     public func run<T: Sendable>(
-        query: Query,
+        query: DatabaseQuery,
         _ handler: (RowSequence) async throws -> T = { $0 }
     ) async throws(DatabaseError) -> T {
         do {
+            let mysqlQuery = query.toMySQLQuery()
             let rows =
                 try await connection.query(
-                    query.sql,
-                    query.bindings
+                    mysqlQuery.sql,
+                    mysqlQuery.bindings
                 )
                 .get()
 
