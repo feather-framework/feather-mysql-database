@@ -9,7 +9,7 @@ import FeatherDatabase
 import MySQLNIO
 import NIOCore
 
-extension Query {
+extension DatabaseQuery {
 
     fileprivate struct MySQLQuery {
         var sql: String
@@ -60,7 +60,7 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
     /// - Returns: A query result containing the returned rows.
     @discardableResult
     public func run<T: Sendable>(
-        query: Query,
+        query: DatabaseQuery,
         _ handler: (RowSequence) async throws -> T = { $0 }
     ) async throws(DatabaseError) -> T {
         do {
