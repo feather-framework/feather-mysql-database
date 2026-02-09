@@ -27,6 +27,8 @@ extension DatabaseQuery {
                 .replacing("{{\(idx)}}", with: "?")
 
             switch binding.binding {
+            case .bool(let value):
+                mysqlBindings.append(.init(bool: value))
             case .int(let value):
                 mysqlBindings.append(.init(int: value))
             case .double(let value):
