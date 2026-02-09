@@ -24,7 +24,7 @@ import Foundation
 @Suite
 struct MySQLDatabaseTestSuite {
 
-    private func randomTableSuffix() -> String {
+    func randomTableSuffix() -> String {
         let characters = Array("abcdefghijklmnopqrstuvwxyz0123456789")
         var suffix = ""
         suffix.reserveCapacity(16)
@@ -34,7 +34,7 @@ struct MySQLDatabaseTestSuite {
         return suffix
     }
 
-    private func runUsingTestDatabaseClient(
+    func runUsingTestDatabaseClient(
         _ closure: ((MySQLDatabaseClient) async throws -> Void)
     ) async throws {
         var logger = Logger(label: "test")
@@ -546,6 +546,76 @@ struct MySQLDatabaseTestSuite {
     }
 
     @Test
+    func booleanInterpolation() async throws {
+        try await runUsingTestDatabaseClient { database in
+            try await database.withConnection { connection in
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT
+                            \#(true) AS `enabled`,
+                            \#(false) AS `disabled`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+                #expect(
+                    try result[0].decode(column: "enabled", as: Int.self) == 1
+                )
+                #expect(
+                    try result[0].decode(column: "disabled", as: Int.self) == 0
+                )
+            }
+        }
+    }
+
+    @Test
+    func booleanInterpolationInWhereClause() async throws {
+        try await runUsingTestDatabaseClient { database in
+            let suffix = randomTableSuffix()
+            let table = "flags_\(suffix)"
+
+            try await database.withConnection { connection in
+                try await connection.run(
+                    query: #"""
+                        DROP TABLE IF EXISTS `\#(unescaped: table)`;
+                        """#
+                )
+                try await connection.run(
+                    query: #"""
+                        CREATE TABLE `\#(unescaped: table)` (
+                            `id` INTEGER NOT NULL PRIMARY KEY,
+                            `is_enabled` INTEGER NOT NULL
+                        );
+                        """#
+                )
+
+                try await connection.run(
+                    query: #"""
+                        INSERT INTO `\#(unescaped: table)`
+                            (`id`, `is_enabled`)
+                        VALUES
+                            (1, 1),
+                            (2, 0);
+                        """#
+                )
+
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT COUNT(*) AS `count`
+                        FROM `\#(unescaped: table)`
+                        WHERE `is_enabled` = \#(true);
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+                #expect(
+                    try result[0].decode(column: "count", as: Int.self) == 1
+                )
+            }
+        }
+    }
+
+    @Test
     func resultSequenceIterator() async throws {
         try await runUsingTestDatabaseClient { database in
             let suffix = randomTableSuffix()
@@ -782,6 +852,35 @@ struct MySQLDatabaseTestSuite {
     }
 
     @Test
+    func transactionClosureErrorPropagates() async throws {
+        try await runUsingTestDatabaseClient { database in
+            enum TestError: Error, Equatable {
+                case boom
+            }
+
+            do {
+                _ = try await database.withTransaction { _ in
+                    throw TestError.boom
+                }
+                Issue.record("Expected transaction error to be thrown.")
+            }
+            catch DatabaseError.transaction(let error) {
+                #expect(error.beginError == nil)
+                #expect(error.commitError == nil)
+                #expect(error.rollbackError == nil)
+                #expect((error.closureError as? TestError) == .boom)
+                #expect(error.file.isEmpty == false)
+                #expect(error.line > 0)
+            }
+            catch {
+                Issue.record(
+                    "Expected database transaction error to be thrown."
+                )
+            }
+        }
+    }
+
+    @Test
     func doubleRoundTrip() async throws {
         try await runUsingTestDatabaseClient { database in
             let suffix = randomTableSuffix()
@@ -940,6 +1039,276 @@ struct MySQLDatabaseTestSuite {
                 catch {
                     Issue.record(
                         "Expected a typeMismatch error when decoding a string as Int."
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    func nullDecodingThrowsTypeMismatch() async throws {
+        try await runUsingTestDatabaseClient { database in
+            let suffix = randomTableSuffix()
+            let table = "nullable_values_\(suffix)"
+
+            try await database.withConnection { connection in
+                try await connection.run(
+                    query: #"""
+                        DROP TABLE IF EXISTS `\#(unescaped: table)`;
+                        """#
+                )
+                try await connection.run(
+                    query: #"""
+                        CREATE TABLE `\#(unescaped: table)` (
+                            `id` INTEGER NOT NULL PRIMARY KEY,
+                            `value` INTEGER
+                        );
+                        """#
+                )
+
+                try await connection.run(
+                    query: #"""
+                        INSERT INTO `\#(unescaped: table)`
+                            (`id`, `value`)
+                        VALUES
+                            (1, NULL);
+                        """#
+                )
+
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT `value`
+                        FROM `\#(unescaped: table)`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+
+                do {
+                    _ = try result[0].decode(column: "value", as: Int.self)
+                    Issue.record("Expected decoding NULL as Int to throw.")
+                }
+                catch let DecodingError.typeMismatch(_, context) {
+                    #expect(
+                        context.debugDescription.contains("Could not convert")
+                    )
+                }
+                catch {
+                    Issue.record(
+                        "Expected a typeMismatch error when decoding NULL as Int."
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    func nonSQLiteDecodableTypeMismatch() async throws {
+        try await runUsingTestDatabaseClient { database in
+            struct CustomValue: Decodable, Sendable {
+                let value: String
+            }
+
+            let suffix = randomTableSuffix()
+            let table = "custom_types_\(suffix)"
+
+            try await database.withConnection { connection in
+                try await connection.run(
+                    query: #"""
+                        DROP TABLE IF EXISTS `\#(unescaped: table)`;
+                        """#
+                )
+                try await connection.run(
+                    query: #"""
+                        CREATE TABLE `\#(unescaped: table)` (
+                            `id` INTEGER NOT NULL PRIMARY KEY,
+                            `value` TEXT NOT NULL
+                        );
+                        """#
+                )
+
+                try await connection.run(
+                    query: #"""
+                        INSERT INTO `\#(unescaped: table)`
+                            (`id`, `value`)
+                        VALUES
+                            (1, 'alpha');
+                        """#
+                )
+
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT `value`
+                        FROM `\#(unescaped: table)`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+
+                do {
+                    _ = try result[0]
+                        .decode(
+                            column: "value",
+                            as: CustomValue.self
+                        )
+                    Issue.record(
+                        "Expected decoding non-MySQLDecodable type to throw."
+                    )
+                }
+                catch let DecodingError.typeMismatch(_, context) {
+                    #expect(
+                        context.debugDescription.contains(
+                            "Keyed decoding is not supported."
+                        )
+                    )
+                }
+                catch {
+                    Issue.record(
+                        "Expected a typeMismatch error for non-MySQLDecodable types."
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    func singleValueDecodingTypeMismatch() async throws {
+        try await runUsingTestDatabaseClient { database in
+            struct CustomValue: Decodable, Sendable {
+                let value: String
+            }
+
+            struct Wrapper: Decodable, Sendable {
+                let value: CustomValue
+
+                init(from decoder: Decoder) throws {
+                    let container = try decoder.singleValueContainer()
+                    value = try container.decode(CustomValue.self)
+                }
+            }
+
+            try await database.withConnection { connection in
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT 'abc' AS `value`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+
+                do {
+                    _ = try result[0]
+                        .decode(
+                            column: "value",
+                            as: Wrapper.self
+                        )
+                    Issue.record(
+                        "Expected single-value decoding to throw typeMismatch."
+                    )
+                }
+                catch let DecodingError.typeMismatch(_, context) {
+                    #expect(
+                        context.debugDescription.contains(
+                            "Data is not convertible"
+                        )
+                    )
+                }
+                catch {
+                    Issue.record(
+                        "Expected a typeMismatch error for single-value decoding."
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    func nonDecodingErrorThrownFromDecodeIsMapped() async throws {
+        try await runUsingTestDatabaseClient { database in
+            enum TestError: Error {
+                case boom
+            }
+
+            struct ThrowingValue: Decodable, Sendable {
+                init(from _: Decoder) throws {
+                    throw TestError.boom
+                }
+            }
+
+            try await database.withConnection { connection in
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT 'abc' AS `value`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+
+                do {
+                    _ = try result[0]
+                        .decode(
+                            column: "value",
+                            as: ThrowingValue.self
+                        )
+                    Issue.record(
+                        "Expected non-DecodingError to map to typeMismatch."
+                    )
+                }
+                catch let DecodingError.typeMismatch(_, context) {
+                    #expect(
+                        context.debugDescription.contains(
+                            "Data is not convertible"
+                        )
+                    )
+                }
+                catch {
+                    Issue.record(
+                        "Expected typeMismatch when decoding throws non-DecodingError."
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    func unkeyedRowDecodingThrowsTypeMismatch() async throws {
+        try await runUsingTestDatabaseClient { database in
+            struct UnkeyedValue: Decodable, Sendable {
+                init(from decoder: Decoder) throws {
+                    var container = try decoder.unkeyedContainer()
+                    _ = try container.decode(String.self)
+                }
+            }
+
+            try await database.withConnection { connection in
+                let result = try await connection.run(
+                    query: #"""
+                        SELECT 'value' AS `value`;
+                        """#
+                ) { try await $0.collect() }
+
+                #expect(result.count == 1)
+
+                do {
+                    _ = try result[0]
+                        .decode(
+                            column: "value",
+                            as: UnkeyedValue.self
+                        )
+                    Issue.record(
+                        "Expected unkeyed decoding to throw a type mismatch."
+                    )
+                }
+                catch let DecodingError.typeMismatch(_, context) {
+                    #expect(
+                        context.debugDescription.contains(
+                            "Unkeyed decoding is not supported."
+                        )
+                    )
+                }
+                catch {
+                    Issue.record(
+                        "Expected a typeMismatch error for unkeyed decoding."
                     )
                 }
             }
