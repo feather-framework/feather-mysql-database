@@ -4,6 +4,9 @@ baseUrl = https://raw.githubusercontent.com/BinaryBirds/github-workflows/refs/he
 
 check: symlinks language deps lint headers
 
+breakage:
+	curl -s $(baseUrl)/check-api-breakage.sh | bash
+
 symlinks:
 	curl -s $(baseUrl)/check-broken-symlinks.sh | bash
 
