@@ -139,4 +139,4 @@ The following database driver implementations are available for use:
 
 ## Contributing
 
-[Pull requests](https://github.com/feather-framework/feather-mysql-database/pulls) are welcome. Please keep changes focused and include tests for new logic. 🙏
+[Pull requests](https://github.com/feather-framework/feather-mysql-database/pulls) are welcome. Please keep changes focused and include tests for new logic.
