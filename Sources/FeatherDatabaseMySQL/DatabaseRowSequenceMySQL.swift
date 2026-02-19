@@ -1,6 +1,6 @@
 //
-//  MySQLDatabaseRowSequence.swift
-//  feather-mysql-database
+//  DatabaseRowSequenceMySQL.swift
+//  feather-database-mysql
 //
 //  Created by Tibor Bödecs on 2026. 01. 10.
 //
@@ -10,22 +10,22 @@ import FeatherDatabase
 /// A query result backed by MySQL rows.
 ///
 /// Use this type to iterate or collect MySQL query results.
-public struct MySQLRowSequence: DatabaseRowSequence {
+public struct DatabaseRowSequenceMySQL: DatabaseRowSequence {
 
-    let elements: [MySQLRow]
+    let elements: [DatabaseRowMySQL]
 
     /// An async iterator over MySQL rows.
     ///
     /// This iterator traverses the in-memory row list.
     public struct Iterator: AsyncIteratorProtocol {
         var index = 0
-        let elements: [MySQLRow]
+        let elements: [DatabaseRowMySQL]
 
         /// Return the next row in the sequence.
         ///
         /// This returns `nil` after the last row.
         /// - Returns: The next `MySQLRow`, or `nil` when finished.
-        public mutating func next() async -> MySQLRow? {
+        public mutating func next() async -> DatabaseRowMySQL? {
             guard index < elements.count else {
                 return nil
             }
@@ -47,7 +47,7 @@ public struct MySQLRowSequence: DatabaseRowSequence {
     /// This returns the rows held by the result.
     /// - Throws: An error if collection fails.
     /// - Returns: An array of `MySQLRow` values.
-    public func collect() async throws -> [MySQLRow] {
+    public func collect() async throws -> [DatabaseRowMySQL] {
         elements
     }
 }

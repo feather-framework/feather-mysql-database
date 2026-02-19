@@ -1,6 +1,6 @@
 //
-//  MySQLDatabaseTransactionError.swift
-//  feather-mysql-database
+//  DatabaseTransactionErrorMySQL.swift
+//  feather-database-mysql
 //
 //  Created by Tibor Bödecs on 2026. 01. 10.
 //
@@ -10,7 +10,7 @@ import FeatherDatabase
 /// Transaction error details for MySQL operations.
 ///
 /// Use this to capture errors from transaction phases.
-public struct MySQLTransactionError: DatabaseTransactionError {
+public struct DatabaseTransactionErrorMySQL: DatabaseTransactionError {
 
     /// The source file where the error was created.
     ///

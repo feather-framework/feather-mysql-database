@@ -48,4 +48,4 @@ test:
 	swift test --parallel
 
 docker-test:
-	docker build -t feather-mysql-database-tests . -f ./docker/tests/Dockerfile && docker run --rm feather-mysql-database-tests
+	docker build -t feather-database-mysql-tests . -f ./docker/tests/Dockerfile && docker run --rm feather-database-mysql-tests

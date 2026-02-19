@@ -1,11 +1,11 @@
-# Feather MySQL Database
+# Feather Database MySQL
 
 MySQL/MariaDB driver implementation for the abstract [Feather Database](https://github.com/feather-framework/feather-database) Swift API package.
 
 [
-    ![Release: 1.0.0-beta.4](https://img.shields.io/badge/Release-1%2E0%2E0--beta%2E4-F05138)
+    ![Release: 1.0.0-beta.5](https://img.shields.io/badge/Release-1%2E0%2E0--beta%2E5-F05138)
 ](
-    https://github.com/feather-framework/feather-mysql-database/releases/tag/1.0.0-beta.4
+    https://github.com/feather-framework/feather-database-mysql/releases/tag/1.0.0-beta.5
 )
 
 ## Features
@@ -36,20 +36,24 @@ MySQL/MariaDB driver implementation for the abstract [Feather Database](https://
 Add the dependency to your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/feather-framework/feather-mysql-database", exact: "1.0.0-beta.4"),
+.package(url: "https://github.com/feather-framework/feather-database-mysql", exact: "1.0.0-beta.5"),
 ```
 
-Then add `FeatherMySQLDatabase` to your target dependencies:
+Then add `FeatherDatabaseMySQL` to your target dependencies:
 
 ```swift
-.product(name: "FeatherMySQLDatabase", package: "feather-mysql-database"),
+.product(name: "FeatherDatabaseMySQL", package: "feather-database-mysql"),
 ```
 
 ## Usage
 
 API documentation is available at the link below:
 
-[![DocC API documentation](https://img.shields.io/badge/DocC-API_documentation-F05138)](https://feather-framework.github.io/feather-mysql-database/)
+[
+    ![DocC API documentation](https://img.shields.io/badge/DocC-API_documentation-F05138)
+](
+    https://feather-framework.github.io/feather-database-mysql/
+)
 
 Here is a brief example:
 
@@ -60,7 +64,7 @@ import NIOCore
 import NIOPosix
 import NIOSSL
 import FeatherDatabase
-import FeatherMySQLDatabase
+import FeatherDatabaseMySQL
 
 var logger = Logger(label: "example")
 logger.logLevel = .info
@@ -85,7 +89,7 @@ let connection =
     )
     .get()
 
-let database = MySQLDatabaseClient(
+let database = DatabaseClientMySQL(
     connection: connection,
     logger: logger
 )
@@ -123,10 +127,10 @@ catch {
 
 ## Other database drivers
 
-The following database driver implementations are available for use:
+The following database client implementations are also available for use:
 
-- [SQLite](https://github.com/feather-framework/feather-sqlite-database)
-- [Postgres](https://github.com/feather-framework/feather-postgres-database)
+- [SQLite](https://github.com/feather-framework/feather-database-sqlite)
+- [Postgres](https://github.com/feather-framework/feather-database-postgres)
 
 ## Development
 
@@ -139,4 +143,5 @@ The following database driver implementations are available for use:
 
 ## Contributing
 
-[Pull requests](https://github.com/feather-framework/feather-mysql-database/pulls) are welcome. Please keep changes focused and include tests for new logic.
+[Pull requests](https://github.com/feather-framework/feather-database-mysql/pulls) are welcome. Please keep changes focused and include tests for new logic. 🙏
+

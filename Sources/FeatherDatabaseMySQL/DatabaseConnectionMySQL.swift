@@ -1,6 +1,6 @@
 //
-//  MySQLDatabaseConnection.swift
-//  feather-mysql-database
+//  DatabaseConnectionMySQL.swift
+//  feather-database-mysql
 //
 //  Created by Tibor Bödecs on 2026. 01. 10.
 //
@@ -45,9 +45,9 @@ extension DatabaseQuery {
     }
 }
 
-public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
+public struct DatabaseConnectionMySQL: DatabaseConnection {
 
-    public typealias RowSequence = MySQLRowSequence
+    public typealias RowSequence = DatabaseRowSequenceMySQL
 
     let connection: MySQLNIO.MySQLConnection
     public var logger: Logging.Logger
@@ -75,7 +75,7 @@ public struct MySQLDatabaseConnection: DatabaseConnection, Sendable {
                 .get()
 
             return try await handler(
-                MySQLRowSequence(
+                DatabaseRowSequenceMySQL(
                     elements: rows.map {
                         .init(
                             row: $0

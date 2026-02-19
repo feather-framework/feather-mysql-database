@@ -1,6 +1,6 @@
 //
-//  MySQLDatabaseRow.swift
-//  feather-mysql-database
+//  DatabaseRowMySQL.swift
+//  feather-database-mysql
 //
 //  Created by Tibor Bödecs on 2026. 01. 10.
 //
@@ -8,7 +8,7 @@
 import FeatherDatabase
 import MySQLNIO
 
-public struct MySQLRow: DatabaseRow {
+public struct DatabaseRowMySQL: DatabaseRow {
 
     var row: MySQLNIO.MySQLRow
 
