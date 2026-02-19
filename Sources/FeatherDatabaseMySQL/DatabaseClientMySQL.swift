@@ -1,6 +1,6 @@
 //
-//  MySQLDatabaseClient.swift
-//  feather-mysql-database
+//  DatabaseClientMySQL.swift
+//  feather-database-mysql
 //
 //  Created by Tibor Bödecs on 2026. 01. 10..
 //
@@ -12,11 +12,11 @@ import MySQLNIO
 /// A MySQL-backed database client.
 ///
 /// Use this client to execute queries and manage transactions on MySQL.
-public struct MySQLDatabaseClient: DatabaseClient {
+public struct DatabaseClientMySQL: DatabaseClient {
 
-    public typealias Connection = MySQLDatabaseConnection
+    public typealias Connection = DatabaseConnectionMySQL
 
-    var connection: MySQLDatabaseConnection
+    var connection: DatabaseConnectionMySQL
     var logger: Logger
 
     /// Create a MySQL database client.
@@ -75,7 +75,7 @@ public struct MySQLDatabaseClient: DatabaseClient {
         }
         catch {
             throw DatabaseError.transaction(
-                MySQLTransactionError(
+                DatabaseTransactionErrorMySQL(
                     beginError: error
                 )
             )
@@ -92,14 +92,14 @@ public struct MySQLDatabaseClient: DatabaseClient {
             }
             catch {
                 throw DatabaseError.transaction(
-                    MySQLTransactionError(commitError: error)
+                    DatabaseTransactionErrorMySQL(commitError: error)
                 )
             }
 
             return result
         }
         catch {
-            var txError = MySQLTransactionError()
+            var txError = DatabaseTransactionErrorMySQL()
 
             if !closureHasFinished {
                 txError.closureError = error
